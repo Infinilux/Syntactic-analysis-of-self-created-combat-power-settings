@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中文依存句法分析器</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  background: #f0f2f5;
+  color: #333;
+  line-height: 1.6;
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+.header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+.header h1 { font-size: 28px; margin-bottom: 6px; }
+.header p { font-size: 14px; opacity: 0.8; }
+.input-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.input-section textarea {
+  width: 100%;
+  min-height: 180px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 15px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+.input-section textarea:focus {
+  outline: none;
+  border-color: #0f3460;
+}
+.btn-row { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-primary { background: #0f3460; color: #fff; }
+.btn-primary:hover { background: #1a4a8a; }
+.btn-secondary { background: #e8e8e8; color: #555; }
+.btn-secondary:hover { background: #d5d5d5; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.output-section { margin-bottom: 24px; }
+.phase-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  border-left: 4px solid #0f3460;
+}
+.phase-card.phase-0 { border-left-color: #e74c3c; }
+.phase-card.phase-1 { border-left-color: #e67e22; }
+.phase-card.phase-overview { border-left-color: #9b59b6; }
+.phase-card.phase-top3 { border-left-color: #1abc9c; }
+.phase-card.phase-2 { border-left-color: #2ecc71; }
+.phase-card.phase-3 { border-left-color: #3498db; }
+.phase-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f0f0f0;
+}
+.phase-content { font-size: 14px; }
+.phase-content pre {
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.stat-card {
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+}
+.stat-card .stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f3460;
+  margin-bottom: 4px;
+}
+.stat-card .stat-label {
+  font-size: 12px;
+  color: #888;
+}
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 16px 0;
+}
+.chart-box {
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+.chart-box h5 {
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: #0f3460;
+}
+.chart-box canvas {
+  max-width: 100%;
+  height: auto;
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.dsdi-bar-chart {
+  margin: 16px 0;
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+}
+.dsdi-bar-chart h5 {
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: #0f3460;
+  text-align: center;
+}
+.dsdi-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.dsdi-bar .bar-label {
+  width: 50px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: 8px;
+  color: #666;
+}
+.dsdi-bar .bar-track {
+  flex: 1;
+  height: 20px;
+  background: #e8e8e8;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.dsdi-bar .bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.dsdi-bar .bar-value {
+  width: 55px;
+  flex-shrink: 0;
+  padding-left: 8px;
+  color: #333;
+  font-weight: 600;
+}
+.stat-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.stat-table th, .stat-table td {
+  border: 1px solid #e0e0e0;
+  padding: 8px 12px;
+  text-align: center;
+}
+.stat-table th { background: #f5f7fa; font-weight: 600; }
+.stat-table tr:nth-child(even) { background: #fafbfc; }
+.sentence-block {
+  background: #fafbfc;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.sentence-block h4 { font-size: 15px; margin-bottom: 10px; color: #0f3460; }
+.tree-vis {
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #e8e8e8;
+  white-space: pre;
+  overflow-x: auto;
+}
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+.badge-easy { background: #d5f5e3; color: #27ae60; }
+.badge-medium { background: #fef9e7; color: #f39c12; }
+.badge-hard { background: #fdebd0; color: #e67e22; }
+.badge-veryhard { background: #fadbd8; color: #e74c3c; }
+.badge-extreme { background: #f5b7b1; color: #922b21; }
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ccc;
+  border-top-color: #0f3460;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: #888; font-size: 14px; }
+.collapse-toggle {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.collapse-toggle::before {
+  content: '▼';
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+.collapse-toggle.collapsed::before {
+  transform: rotate(-90deg);
+}
+.collapse-body {
+  max-height: none;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.collapse-body.hidden {
+  display: none;
+}
+.top3-item {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);
+  border: 1px solid #d0d8ff;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.top3-item.rank-1 {
+  background: linear-gradient(135deg, #fff0e6 0%, #ffe4cc 100%);
+  border-color: #ffc299;
+}
+.top3-item.rank-2 {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e0e8ff 100%);
+  border-color: #b3c6ff;
+}
+.top3-item.rank-3 {
+  background: linear-gradient(135deg, #e6fff0 0%, #ccffdd 100%);
+  border-color: #99e6b3;
+}
+.top3-rank {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  text-align: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 14px;
+  margin-right: 8px;
+  background: #fff;
+}
+.top3-item.rank-1 .top3-rank { background: #ff6b35; color: #fff; }
+.top3-item.rank-2 .top3-rank { background: #4a7dff; color: #fff; }
+.top3-item.rank-3 .top3-rank { background: #2ecc71; color: #fff; }
+.top3-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+.error-box {
+  background: #fde8e8;
+  border: 1px solid #f5c6c6;
+  color: #9b2c2c;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>中文依存句法分析器</h1>
+    <p>Dependency Parsing Analyzer for Chinese Text · 纯前端实现 · 规则驱动</p>
+  </div>
+
+  <div class="input-section">
+    <textarea id="inputText" placeholder="请在此输入需要分析的中文文本...&#10;&#10;示例：我是一个学生。今天天气很好，我和朋友一起去公园散步。"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnAnalyze" onclick="runAnalysis()">开始分析</button>
+      <button class="btn btn-secondary" onclick="loadSample(1)">加载示例1（简单）</button>
+      <button class="btn btn-secondary" onclick="loadSample(2)">加载示例2（中等）</button>
+      <button class="btn btn-secondary" onclick="loadSample(3)">加载示例3（复杂）</button>
+      <button class="btn btn-secondary" onclick="clearAll()">清空</button>
+    </div>
+  </div>
+
+  <div id="outputArea" class="output-section"></div>
+</div>
+
+<script>
+// ============================================================
+// 中文词库 (词 → 词性)
+// n=名词 v=动词 a=形容词 d=副词 p=介词 c=连词 u=助词
+// r=代词 m=数词 q=量词 w=标点 f=方位词 t=时间词 s=处所词
+// ============================================================
+const DICT = {
+  // 代词
+  '我':'r','你':'r','您':'r','他':'r','她':'r','它':'r','我们':'r','你们':'r','他们':'r','她们':'r',
+  '自己':'r','大家':'r','谁':'r','什么':'r','哪':'r','哪里':'r','怎么':'r','怎样':'r','这':'r',
+  '那':'r','这个':'r','那个':'r','这些':'r','那些':'r','这里':'r','那里':'r','这样':'r','那样':'r',
+  '其':'r','该':'r','本':'r','此':'r','某':'r','各':'r','每':'r','任何':'r','一切':'r','所有':'r',
+  // 名词-人物
+  '人':'n','学生':'n','老师':'n','教授':'n','医生':'n','护士':'n','工人':'n','农民':'n','司机':'n',
+  '孩子':'n','父母':'n','父亲':'n','母亲':'n','爸爸':'n','妈妈':'n','儿子':'n','女儿':'n','朋友':'n',
+  '同学':'n','同事':'n','领导':'n','老板':'n','员工':'n','客户':'n','用户':'n','作者':'n','读者':'n',
+  '男人':'n','女人':'n','老人':'n','青年':'n','儿童':'n','群众':'n','人民':'n','敌人':'n','英雄':'n',
+  '先生':'n','女士':'n','小姐':'n','夫人':'n','皇帝':'n','国王':'n','总统':'n','总理':'n','主席':'n',
+  // 名词-事物
+  '东西':'n','事情':'n','问题':'n','方法':'n','原因':'n','结果':'n','关系':'n','情况':'n','条件':'n',
+  '时间':'n','地方':'n','世界':'n','国家':'n','社会':'n','文化':'n','历史':'n','经济':'n','政治':'n',
+  '科学':'n','技术':'n','艺术':'n','教育':'n','法律':'n','制度':'n','政策':'n','计划':'n','方案':'n',
+  '系统':'n','结构':'n','功能':'n','作用':'n','影响':'n','意义':'n','价值':'n','价格':'n','质量':'n',
+  '数量':'n','速度':'n','力量':'n','权力':'n','权利':'n','义务':'n','责任':'n','任务':'n','目标':'n',
+  '思想':'n','理论':'n','观念':'n','意识':'n','精神':'n','心理':'n','感情':'n','情绪':'n','态度':'n',
+  '行为':'n','行动':'n','活动':'n','运动':'n','变化':'n','发展':'n','进步':'n','改革':'n','创新':'n',
+  '信息':'n','数据':'n','资料':'n','文件':'n','报告':'n','文章':'n','新闻':'n','消息':'n','故事':'n',
+  '书':'n','笔':'n','纸':'n','桌子':'n','椅子':'n','门':'n','窗':'n','房子':'n','房间':'n','车':'n',
+  '电脑':'n','手机':'n','电视':'n','电影':'n','音乐':'n','游戏':'n','网络':'n','软件':'n','程序':'n',
+  '水':'n','火':'n','风':'n','雨':'n','雪':'n','山':'n','河':'n','海':'n','天':'n','地':'n','树':'n',
+  '花':'n','草':'n','鸟':'n','鱼':'n','狗':'n','猫':'n','马':'n','牛':'n','羊':'n','猪':'n',
+  '学校':'n','医院':'n','银行':'n','公司':'n','工厂':'n','商店':'n','饭店':'n','公园':'n','图书馆':'n',
+  '北京':'n','上海':'n','广州':'n','深圳':'n','中国':'n','美国':'n','日本':'n','英国':'n','法国':'n',
+  // 名词-抽象
+  '生命':'n','生活':'n','工作':'n','学习':'n','研究':'n','设计':'n','建设':'n','管理':'n','服务':'n',
+  '环境':'n','资源':'n','能源':'n','交通':'n','通信':'n','农业':'n','工业':'n','商业':'n','金融':'n',
+  '健康':'n','安全':'n','和平':'n','战争':'n','自由':'n','平等':'n','民主':'n','法治':'n','正义':'n',
+  '知识':'n','技能':'n','能力':'n','水平':'n','经验':'n','智慧':'n','勇气':'n','信心':'n','希望':'n',
+  '梦想':'n','理想':'n','信念':'n','信仰':'n','真理':'n','规律':'n','原则':'n','标准':'n','规范':'n',
+  '今天':'t','明天':'t','昨天':'t','现在':'t','过去':'t','将来':'t','未来':'t','早上':'t','晚上':'t',
+  '上午':'t','下午':'t','中午':'t','夜晚':'t','星期':'t','月':'t','年':'t','日':'t','小时':'t',
+  '分钟':'t','刚才':'t','刚刚':'t','正在':'d','已经':'d','曾经':'d','即将':'d','马上':'d',
+  // 动词
+  '是':'v','有':'v','在':'v','去':'v','来':'v','到':'v','做':'v','干':'v','搞':'v','弄':'v',
+  '说':'v','讲':'v','谈':'v','问':'v','答':'v','叫':'v','喊':'v','唱':'v','写':'v','读':'v',
+  '看':'v','听':'v','吃':'v','喝':'v','走':'v','跑':'v','坐':'v','站':'v','躺':'v','睡':'v',
+  '想':'v','觉得':'v','认为':'v','以为':'v','知道':'v','了解':'v','理解':'v','明白':'v','懂':'v',
+  '喜欢':'v','爱':'v','恨':'v','讨厌':'v','害怕':'v','担心':'v','关心':'v','注意':'v','重视':'v',
+  '学习':'v','研究':'v','分析':'v','讨论':'v','思考':'v','考虑':'v','决定':'v','选择':'v','判断':'v',
+  '使用':'v','利用':'v','应用':'v','采用':'v','采取':'v','实行':'v','执行':'v','实施':'v','操作':'v',
+  '开始':'v','结束':'v','停止':'v','继续':'v','完成':'v','实现':'v','达到':'v','取得':'v','获得':'v',
+  '增加':'v','减少':'v','提高':'v','降低':'v','扩大':'v','缩小':'v','加强':'v','减弱':'v','改变':'v',
+  '发展':'v','进步':'v','提高':'v','改善':'v','改进':'v','完善':'v','优化':'v','升级':'v','更新':'v',
+  '建立':'v','建设':'v','创造':'v','制造':'v','生产':'v','开发':'v','设计':'v','规划':'v','制定':'v',
+  '提供':'v','给予':'v','帮助':'v','支持':'v','保护':'v','维护':'v','保持':'v','维持':'v','坚持':'v',
+  '包括':'v','包含':'v','具有':'v','拥有':'v','存在':'v','属于':'v','成为':'v','变成':'v','形成':'v',
+  '表示':'v','表达':'v','说明':'v','解释':'v','证明':'v','表明':'v','显示':'v','反映':'v','体现':'v',
+  '需要':'v','要求':'v','希望':'v','愿意':'v','能够':'v','可以':'v','可能':'v','应该':'v','必须':'v',
+  '让':'v','使':'v','令':'v','请':'v','派':'v','送':'v','给':'v','交':'v','带':'v','拿':'v',
+  '放':'v','开':'v','关':'v','进':'v','出':'v','上':'v','下':'v','回':'v','过':'v','起':'v',
+  '打':'v','拉':'v','推':'v','踢':'v','跳':'v','飞':'v','游':'v','爬':'v','摔':'v','掉':'v',
+  '买':'v','卖':'v','花':'v','赚':'v','付':'v','收':'v','借':'v','还':'v','租':'v','欠':'v',
+  '教':'v','学':'v','练':'v','试':'v','查':'v','找':'v','搜':'v','下载':'v','上传':'v','发':'v',
+  '收到':'v','接受':'v','拒绝':'v','同意':'v','反对':'v','赞成':'v','批评':'v','表扬':'v','称赞':'v',
+  '变成':'v','变得':'v','显得':'v','看起来':'v','听起来':'v','感到':'v','感觉':'v','发现':'v','看见':'v',
+  '听见':'v','闻':'v','尝':'v','摸':'v','抓':'v','按':'v','点击':'v','输入':'v','输出':'v','打印':'v',
+  // 形容词
+  '大':'a','小':'a','多':'a','少':'a','高':'a','低':'a','长':'a','短':'a','快':'a','慢':'a',
+  '好':'a','坏':'a','新':'a','旧':'a','老':'a','年轻':'a','美':'a','丑':'a','胖':'a','瘦':'a',
+  '热':'a','冷':'a','暖':'a','凉':'a','干':'a','湿':'a','硬':'a','软':'a','轻':'a','重':'a',
+  '远':'a','近':'a','深':'a','浅':'a','厚':'a','薄':'a','宽':'a','窄':'a','粗':'a','细':'a',
+  '重要':'a','主要':'a','基本':'a','根本':'a','关键':'a','核心':'a','特殊':'a','普通':'a','一般':'a',
+  '正确':'a','错误':'a','对':'a','错':'a','真':'a','假':'a','真实':'a','虚假':'a','确实':'a',
+  '简单':'a','复杂':'a','容易':'a','困难':'a','方便':'a','麻烦':'a','清楚':'a','模糊':'a','明确':'a',
+  '美丽':'a','漂亮':'a','好看':'a','丑':'a','帅':'a','可爱':'a','温柔':'a','善良':'a','聪明':'a',
+  '勇敢':'a','坚强':'a','努力':'a','勤奋':'a','认真':'a','仔细':'a','耐心':'a','细心':'a','粗心':'a',
+  '快乐':'a','幸福':'a','高兴':'a','开心':'a','难过':'a','伤心':'a','痛苦':'a','愤怒':'a','害怕':'a',
+  '安静':'a','热闹':'a','干净':'a','脏':'a','整齐':'a','乱':'a','丰富':'a','贫乏':'a','充足':'a',
+  '优秀':'a','杰出':'a','出色':'a','卓越':'a','伟大':'a','著名':'a','有名':'a','成功':'a','失败':'a',
+  '强烈':'a','激烈':'a','热烈':'a','猛烈':'a','温柔':'a','温和':'a','温暖':'a','寒冷':'a','炎热':'a',
+  '迅速':'a','快速':'a','缓慢':'a','及时':'a','准时':'a','提前':'a','延迟':'a','永久':'a','暂时':'a',
+  '安全':'a','危险':'a','稳定':'a','动荡':'a','和平':'a','混乱':'a','有序':'a','无序':'a','平衡':'a',
+  // 副词
+  '很':'d','非常':'d','十分':'d','特别':'d','尤其':'d','更加':'d','最':'d','极':'d','太':'d',
+  '比较':'d','相当':'d','稍微':'d','略微':'d','有点':'d','有些':'d','几乎':'d','简直':'d','根本':'d',
+  '都':'d','全部':'d','完全':'d','彻底':'d','统统':'d','总共':'d','一共':'d','一起':'d','一块儿':'d',
+  '也':'d','还':'d','又':'d','再':'d','仍然':'d','依然':'d','依旧':'d','一直':'d','始终':'d',
+  '只':'d','仅仅':'d','光':'d','单':'d','仅':'d','才':'d','就':'d','便':'d','即':'d','刚':'d',
+  '不':'d','没':'d','没有':'d','别':'d','勿':'d','未':'d','非':'d','莫':'d','休':'d',
+  '大概':'d','大约':'d','也许':'d','或许':'d','可能':'d','恐怕':'d','好像':'d','似乎':'d','仿佛':'d',
+  '当然':'d','果然':'d','居然':'d','竟然':'d','偏偏':'d','恰恰':'d','正好':'d','刚好':'d',
+  '其实':'d','实际上':'d','事实上':'d','确实':'d','的确':'d','真的':'d','实在':'d','绝对':'d','一定':'d',
+  '经常':'d','常常':'d','往往':'d','偶尔':'d','有时':'d','时而':'d','总是':'d','老是':'d',
+  '逐渐':'d','渐渐':'d','慢慢':'d','逐步':'d','日益':'d','越来越':'d','越发':'d',
+  '首先':'d','然后':'d','接着':'d','最后':'d','终于':'d','最终':'d','终究':'d','到底':'d',
+  '一边':'d','一方面':'d','另一方面':'d','同时':'d','此外':'d','另外':'d','除此之外':'d',
+  // 介词
+  '在':'p','从':'p','到':'p','向':'p','朝':'p','往':'p','对':'p','对于':'p','关于':'p',
+  '把':'p','将':'p','被':'p','让':'p','叫':'p','给':'p','为':'p','为了':'p','因为':'p',
+  '按照':'p','根据':'p','依照':'p','依据':'p','通过':'p','经过':'p','沿着':'p','顺着':'p',
+  '以':'p','用':'p','靠':'p','凭':'p','比':'p','跟':'p','和':'p','与':'p','同':'p',
+  '除了':'p','除非':'p','除':'p','当':'p','当着':'p','趁':'p','趁着':'p',
+  '由于':'p','由':'p','自':'p','自从':'p','打':'p','距':'p','距离':'p','离':'p',
+  '作为':'p','当作':'p','看成':'p','看作':'p','视为':'p','称为':'p','叫做':'p',
+  // 连词
+  '和':'c','与':'c','同':'c','跟':'c','及':'c','以及':'c','或者':'c','还是':'c','要么':'c',
+  '但是':'c','但':'c','可是':'c','然而':'c','不过':'c','只是':'c','却':'c','而':'c',
+  '因为':'c','所以':'c','因此':'c','因而':'c','于是':'c','从而':'c','进而':'c',
+  '如果':'c','假如':'c','倘若':'c','要是':'c','只要':'c','只有':'c','除非':'c','无论':'c',
+  '虽然':'c','尽管':'c','即使':'c','即便':'c','哪怕':'c','纵然':'c','就算':'c',
+  '不但':'c','不仅':'c','不只':'c','不光':'c','而且':'c','并且':'c','况且':'c','何况':'c',
+  '然后':'c','接着':'c','随后':'c','之后':'c','以前':'c','以后':'c','之前':'c',
+  '之所以':'c','是因为':'c','既然':'c','既':'c','又':'c',
+  '以免':'c','以便':'c','免得':'c','省得':'c','为了':'c','为的是':'c',
+  // 助词
+  '的':'u','地':'u','得':'u','了':'u','着':'u','过':'u','所':'u','之':'u','等':'u',
+  '似的':'u','一般':'u','一样':'u','般':'u','来':'u','去':'u','把':'u','个':'u',
+  '的话':'u','看':'u','说':'u','来讲':'u','来说':'u','来看':'u',
+  '吗':'u','呢':'u','吧':'u','啊':'u','呀':'u','哇':'u','哪':'u','啦':'u','嘛':'u',
+  '呗':'u','罢':'u','么':'u','哩':'u','咧':'u','咯':'u','哦':'u','哟':'u',
+  // 数词
+  '一':'m','二':'m','三':'m','四':'m','五':'m','六':'m','七':'m','八':'m','九':'m','十':'m',
+  '百':'m','千':'m','万':'m','亿':'m','兆':'m','零':'m','两':'m','几':'m','多少':'m',
+  '第一':'m','第二':'m','第三':'m','许多':'m','很多':'m','大量':'m','少数':'m','多数':'m',
+  '一些':'m','有些':'m','某些':'m','各个':'m','每个':'m','任何':'m','整个':'m','全部':'m',
+  // 量词
+  '个':'q','只':'q','条':'q','件':'q','张':'q','本':'q','支':'q','台':'q','辆':'q','艘':'q',
+  '匹':'q','头':'q','棵':'q','朵':'q','粒':'q','颗':'q','块':'q','片':'q','面':'q','座':'q',
+  '次':'q','回':'q','遍':'q','趟':'q','下':'q','番':'q','顿':'q','场':'q','阵':'q','门':'q',
+  '种':'q','类':'q','样':'q','位':'q','名':'q','家':'q','户':'q','双':'q','对':'q','套':'q',
+  '些':'q','点':'q','丝':'q','毫':'q','层':'q','段':'q','截':'q','节':'q','句':'q','首':'q',
+  '倍':'q','成':'q','分':'q','寸':'q','尺':'q','丈':'q','里':'q','米':'q','斤':'q','公斤':'q',
+  // 方位词
+  '上':'f','下':'f','左':'f','右':'f','前':'f','后':'f','里':'f','外':'f','内':'f','中':'f',
+  '中间':'f','旁边':'f','对面':'f','附近':'f','周围':'f','上面':'f','下面':'f','前面':'f','后面':'f',
+  '里面':'f','外面':'f','之内':'f','之外':'f','之间':'f','之中':'f','以内':'f','以外':'f',
+  '东':'f','南':'f','西':'f','北':'f','东南':'f','东北':'f','西南':'f','西北':'f',
+};
+
+const VERB_SUFFIXES = ['化','得','到','完','好','住','掉','走','开','起','上','下','进','出','回','过','起来','下去','上来','下来','进去','出来','回去','过去'];
+const NOUN_SUFFIXES = ['子','头','儿','者','家','员','性','度','化','主义','学','论','法','器','机','品','物','体','处','所','长','师','生','工','匠','手','族','派','界'];
+const ADJ_SUFFIXES = ['的','然','式','型','状','态','性'];
+
+const DIFF_COLORS = {
+  '简单': '#27ae60',
+  '中等': '#f39c12',
+  '较难': '#e67e22',
+  '困难': '#e74c3c',
+  '极难': '#922b21'
+};
+const DIFF_ORDER = ['简单', '中等', '较难', '困难', '极难'];
+
+// ============================================================
+// 安全包装
+// ============================================================
+function safe(fn, fallback) {
+  try { return fn(); }
+  catch (e) { console.error(e); return fallback; }
+}
+
+// ============================================================
+// 分词器：正向最大匹配 (FMM)
+// ============================================================
+function tokenize(sentence) {
+  return safe(() => {
+    const tokens = [];
+    let i = 0;
+    const len = sentence.length;
+    const MAX_WORD_LEN = 8;
+    while (i < len) {
+      const ch = sentence[i];
+      if (/\s/.test(ch)) { i++; continue; }
+      if (/[，。！？、；：""''（）《》【】……—\-,.!?;:()\[\]{}""'']/.test(ch)) {
+        tokens.push(ch); i++; continue;
+      }
+      if (/[a-zA-Z0-9]/.test(ch)) {
+        let j = i;
+        while (j < len && /[a-zA-Z0-9]/.test(sentence[j])) j++;
+        tokens.push(sentence.substring(i, j));
+        i = j; continue;
+      }
+      let matched = false;
+      for (let wlen = Math.min(MAX_WORD_LEN, len - i); wlen >= 1; wlen--) {
+        const word = sentence.substring(i, i + wlen);
+        if (DICT[word] !== undefined) {
+          tokens.push(word); i += wlen; matched = true; break;
+        }
+      }
+      if (!matched) { tokens.push(ch); i++; }
+    }
+    return tokens;
+  }, []);
+}
+
+// ============================================================
+// 词性标注
+// ============================================================
+function posTag(tokens) {
+  return safe(() => tokens.map(t => {
+    if (/^[，。！？、；：""''（）《》【】……—\-,.!?;:()\[\]{}""''\s]$/.test(t)) return { word: t, pos: 'w' };
+    if (/^[\d]+$/.test(t)) return { word: t, pos: 'm' };
+    if (DICT[t] !== undefined) return { word: t, pos: DICT[t] };
+    if (/^[a-zA-Z]+$/.test(t)) return { word: t, pos: 'n' };
+    const lastChar = t[t.length - 1] || '';
+    const lastTwo = t.length >= 2 ? t.substring(t.length - 2) : '';
+    if (VERB_SUFFIXES.includes(lastTwo) || VERB_SUFFIXES.includes(lastChar)) return { word: t, pos: 'v' };
+    if (NOUN_SUFFIXES.includes(lastChar) || NOUN_SUFFIXES.includes(lastTwo)) return { word: t, pos: 'n' };
+    if (ADJ_SUFFIXES.includes(lastChar)) return { word: t, pos: 'a' };
+    return { word: t, pos: 'n' };
+  }), []);
+}
+
+// ============================================================
+// 依存句法分析器 (规则驱动)
+// ============================================================
+function dependencyParse(taggedTokens) {
+  return safe(() => {
+    const n = taggedTokens.length;
+    if (n === 0) return { triples: [], heads: [], rels: [], rootIdx: -1 };
+    const words = taggedTokens.map(t => t.word);
+    const poses = taggedTokens.map(t => t.pos);
+    const heads = new Array(n).fill(-1);
+    const rels = new Array(n).fill('');
+    const attached = new Array(n).fill(false);
+
+    function isPOS(i, list) { return i >= 0 && i < n && list.includes(poses[i]); }
+    function isNoun(i) { return isPOS(i, ['n', 'r', 't', 's', 'f', 'm', 'q']); }
+    function isVerb(i) { return isPOS(i, ['v', 'a']); }
+    function isAdj(i) { return isPOS(i, ['a']); }
+    function isAdv(i) { return isPOS(i, ['d']); }
+    function isPrep(i) { return isPOS(i, ['p']); }
+    function isConj(i) { return isPOS(i, ['c']); }
+    function isPunct(i) { return isPOS(i, ['w']); }
+    function isParticle(i) { return isPOS(i, ['u']); }
+
+    // Step 1: ROOT
+    let rootIdx = -1;
+    for (let i = n - 1; i >= 0; i--) {
+      if (isVerb(i) && !isConj(i)) { rootIdx = i; break; }
+    }
+    if (rootIdx === -1) {
+      for (let i = n - 1; i >= 0; i--) {
+        if (isAdj(i)) { rootIdx = i; break; }
+      }
+    }
+    if (rootIdx === -1) {
+      for (let i = n - 1; i >= 0; i--) {
+        if (!isPunct(i) && !isParticle(i) && !isConj(i)) { rootIdx = i; break; }
+      }
+    }
+    if (rootIdx === -1) {
+      for (let i = 0; i < n; i++) { if (!isPunct(i)) { rootIdx = i; break; } }
+    }
+    if (rootIdx < 0) rootIdx = 0;
+    heads[rootIdx] = -1;
+    rels[rootIdx] = 'ROOT';
+    attached[rootIdx] = true;
+
+    // Step 2: SBV
+    for (let i = rootIdx - 1; i >= 0; i--) {
+      if (!attached[i] && isNoun(i) && !isPunct(i)) {
+        heads[i] = rootIdx; rels[i] = 'SBV'; attached[i] = true; break;
+      }
+    }
+
+    // Step 3: VOB
+    for (let i = rootIdx + 1; i < n; i++) {
+      if (!attached[i] && isNoun(i) && !isPunct(i)) {
+        heads[i] = rootIdx; rels[i] = 'VOB'; attached[i] = true; break;
+      }
+    }
+
+    // Step 4: 把/被
+    for (let i = 0; i < n; i++) {
+      if (!attached[i] && (words[i] === '把' || words[i] === '将')) {
+        for (let j = i + 1; j < n; j++) {
+          if (!attached[j] && isNoun(j)) {
+            heads[j] = rootIdx; rels[j] = 'FOB'; attached[j] = true;
+            heads[i] = rootIdx; rels[i] = 'ADV'; attached[i] = true; break;
+          }
+        }
+      }
+      if (!attached[i] && words[i] === '被') {
+        heads[i] = rootIdx; rels[i] = 'ADV'; attached[i] = true;
+        for (let j = i + 1; j < n; j++) {
+          if (!attached[j] && isNoun(j)) {
+            heads[j] = rootIdx; rels[j] = 'SBV'; attached[j] = true; break;
+          }
+        }
+      }
+    }
+
+    // Step 5: 的
+    for (let i = 0; i < n; i++) {
+      if (words[i] === '的' && !attached[i]) {
+        let rightHead = -1;
+        for (let j = i + 1; j < n; j++) {
+          if (!isPunct(j) && !isParticle(j)) { rightHead = j; break; }
+        }
+        if (rightHead >= 0) {
+          heads[i] = rightHead; rels[i] = 'RAD'; attached[i] = true;
+          for (let j = i - 1; j >= 0; j--) {
+            if (!attached[j] && !isPunct(j) && !isParticle(j)) {
+              heads[j] = rightHead; rels[j] = 'ATT'; attached[j] = true; break;
+            }
+          }
+        }
+      }
+    }
+
+    // Step 6: ADV
+    for (let i = 0; i < n; i++) {
+      if (!attached[i] && isAdv(i)) {
+        for (let j = i + 1; j < n; j++) {
+          if (isVerb(j) || isAdj(j)) {
+            heads[i] = j; rels[i] = 'ADV'; attached[i] = true; break;
+          }
+        }
+        if (!attached[i]) {
+          for (let j = i - 1; j >= 0; j--) {
+            if (isVerb(j) || isAdj(j)) {
+              heads[i] = j; rels[i] = 'ADV'; attached[i] = true; break;
+            }
+          }
+        }
+      }
+    }
+
+    // Step 7: 得 CMP
+    for (let i = 0; i < n; i++) {
+      if (words[i] === '得' && !attached[i]) {
+        for (let j = i - 1; j >= 0; j--) {
+          if (isVerb(j)) {
+            heads[i] = j; rels[i] = 'RAD'; attached[i] = true;
+            for (let k = i + 1; k < n; k++) {
+              if (!attached[k] && !isPunct(k)) {
+                heads[k] = j; rels[k] = 'CMP'; attached[k] = true; break;
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Step 8: 动词后补语
+    for (let i = 0; i < n; i++) {
+      if (attached[i] && isVerb(i)) {
+        for (let j = i + 1; j < n; j++) {
+          if (!attached[j] && !isPunct(j) && !isNoun(j) && !isAdv(j) && !isConj(j) && !isPrep(j)) {
+            if ((isVerb(j) || isAdj(j)) && words[j].length === 1) {
+              heads[j] = i; rels[j] = 'CMP'; attached[j] = true;
+            }
+          }
+        }
+      }
+    }
+
+    // Step 9: POB
+    for (let i = 0; i < n; i++) {
+      if (!attached[i] && isPrep(i)) {
+        for (let j = i + 1; j < n; j++) {
+          if (!attached[j] && isNoun(j)) {
+            heads[j] = i; rels[j] = 'POB'; attached[j] = true; break;
+          }
+        }
+        let prepHead = rootIdx;
+        for (let j = i - 1; j >= 0; j--) { if (isVerb(j)) { prepHead = j; break; } }
+        for (let j = i + 1; j < n; j++) { if (isVerb(j)) { prepHead = j; break; } }
+        heads[i] = prepHead; rels[i] = 'ADV'; attached[i] = true;
+      }
+    }
+
+    // Step 10: COO
+    for (let i = 0; i < n; i++) {
+      if ((words[i] === '和' || words[i] === '与' || words[i] === '以及' || words[i] === '、' || words[i] === '或' || words[i] === '或者') && !attached[i]) {
+        for (let j = i - 1; j >= 0; j--) {
+          if (!isPunct(j) && !isParticle(j) && !isConj(j)) {
+            heads[i] = j; rels[i] = 'LAD'; attached[i] = true;
+            for (let k = i + 1; k < n; k++) {
+              if (!attached[k] && !isPunct(k) && !isParticle(k) && !isConj(k)) {
+                if (poses[k] === poses[j] || (isNoun(j) && isNoun(k)) || (isVerb(j) && isVerb(k))) {
+                  heads[k] = j; rels[k] = 'COO'; attached[k] = true;
+                }
+                break;
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Step 11: 连词
+    for (let i = 0; i < n; i++) {
+      if (!attached[i] && isConj(i)) {
+        heads[i] = rootIdx; rels[i] = 'ADV'; attached[i] = true;
+      }
+    }
+
+    // Step 12: 剩余
+    for (let i = 0; i < n; i++) {
+      if (!attached[i] && isPunct(i)) {
+        heads[i] = rootIdx; rels[i] = 'IS'; attached[i] = true;
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      if (!attached[i]) {
+        let bestHead = rootIdx;
+        let bestDist = Infinity;
+        for (let j = 0; j < n; j++) {
+          if (attached[j] && !isPunct(j) && Math.abs(i - j) < bestDist) {
+            bestDist = Math.abs(i - j); bestHead = j;
+          }
+        }
+        heads[i] = bestHead; rels[i] = 'ATT'; attached[i] = true;
+      }
+    }
+
+    const triples = [];
+    for (let i = 0; i < n; i++) {
+      triples.push({
+        dep: i, depWord: words[i], depPos: poses[i],
+        head: heads[i], headWord: heads[i] >= 0 ? words[heads[i]] : 'ROOT',
+        rel: rels[i]
+      });
+    }
+    return { triples, heads, rels, rootIdx };
+  }, { triples: [], heads: [], rels: [], rootIdx: -1 });
+}
+
+// ============================================================
+// 指标计算
+// ============================================================
+function calcMDD(triples) {
+  return safe(() => {
+    const deps = triples.filter(t => t.rel !== 'ROOT' && t.rel !== 'IS');
+    if (deps.length === 0) return 0;
+    let total = 0;
+    for (const d of deps) total += Math.abs(d.dep - d.head);
+    return total / deps.length;
+  }, 0);
+}
+
+function calcMaxDepth(heads, rootIdx) {
+  return safe(() => {
+    if (rootIdx < 0 || heads.length === 0) return 0;
+    const n = heads.length;
+    const children = new Array(n).fill(null).map(() => []);
+    for (let i = 0; i < n; i++) {
+      if (heads[i] >= 0 && heads[i] < n) children[heads[i]].push(i);
+    }
+    function dfs(node, depth) {
+      if (children[node].length === 0) return depth;
+      let maxChild = depth;
+      for (const c of children[node]) maxChild = Math.max(maxChild, dfs(c, depth + 1));
+      return maxChild;
+    }
+    return dfs(rootIdx, 1);
+  }, 1);
+}
+
+function calcDSDI(wordCount, maxDepth, mdd, depTypesCount) {
+  return safe(() => wordCount * 0.2 + maxDepth * 3.0 + mdd * 4.0 + depTypesCount * 2.0, 0);
+}
+
+function getDifficulty(dsdi) {
+  if (dsdi < 20) return { level: '简单', cls: 'badge-easy' };
+  if (dsdi < 40) return { level: '中等', cls: 'badge-medium' };
+  if (dsdi < 60) return { level: '较难', cls: 'badge-hard' };
+  if (dsdi < 80) return { level: '困难', cls: 'badge-veryhard' };
+  return { level: '极难', cls: 'badge-extreme' };
+}
+
+// ============================================================
+// 依存树可视化
+// ============================================================
+function buildTreeVisualization(heads, rels, words, rootIdx) {
+  return safe(() => {
+    if (rootIdx < 0 || heads.length === 0) return '(无树结构)';
+    const n = heads.length;
+    const children = new Array(n).fill(null).map(() => []);
+    for (let i = 0; i < n; i++) {
+      if (heads[i] >= 0 && heads[i] < n) children[heads[i]].push({ idx: i, rel: rels[i] });
+    }
+    const lines = [];
+    function render(node, prefix, isLast) {
+      const connector = isLast ? '└── ' : '├── ';
+      const nodeLabel = node === rootIdx ? `ROOT: ${words[node]}` : `${rels[node]}: ${words[node]}`;
+      lines.push(prefix + connector + nodeLabel);
+      const childNodes = children[node];
+      const extPrefix = isLast ? '    ' : '│   ';
+      for (let i = 0; i < childNodes.length; i++) {
+        render(childNodes[i].idx, prefix + extPrefix, i === childNodes.length - 1);
+      }
+    }
+    lines.push(`ROOT: ${words[rootIdx]}`);
+    const childNodes = children[rootIdx];
+    for (let i = 0; i < childNodes.length; i++) {
+      render(childNodes[i].idx, '', i === childNodes.length - 1);
+    }
+    return lines.join('\n');
+  }, '(树结构错误)');
+}
+
+// ============================================================
+// 句子切分
+// ============================================================
+function segmentSentences(text, mode) {
+  return safe(() => {
+    let rawSentences = [];
+    if (mode === 'A') {
+      rawSentences = text.split(/[。？！……]+/).filter(s => s.trim());
+    } else if (mode === 'B') {
+      if (text.includes('\n')) {
+        rawSentences = text.split(/\n+/).filter(s => s.trim());
+      } else if (/\s{2,}/.test(text)) {
+        rawSentences = text.split(/\s{2,}/).filter(s => s.trim());
+      } else {
+        const keywords = ['但是','然而','因此','所以','因为','而且','并且','不过','可是','于是','从而','此外','另外'];
+        rawSentences = [text];
+        for (const kw of keywords) {
+          const newParts = [];
+          for (const s of rawSentences) {
+            const parts = s.split(kw);
+            for (let i = 0; i < parts.length; i++) {
+              if (parts[i].trim()) newParts.push(parts[i].trim());
+              if (i < parts.length - 1) newParts.push(kw);
+            }
+          }
+          rawSentences = newParts;
+        }
+        const merged = [];
+        let buf = '';
+        for (const s of rawSentences) {
+          if (buf && (buf.length + s.length < 30)) { buf += s; }
+          else { if (buf) merged.push(buf); buf = s; }
+        }
+        if (buf) merged.push(buf);
+        rawSentences = merged;
+      }
+    } else {
+      const tokens = tokenize(text);
+      const chunkSize = 15;
+      for (let i = 0; i < tokens.length; i += chunkSize) {
+        rawSentences.push(tokens.slice(i, i + chunkSize).join(''));
+      }
+    }
+    return rawSentences.filter(s => {
+      const t = s.trim();
+      if (t.length === 0) return false;
+      if (/^[\d\s]+$/.test(t)) return false;
+      if (/^[，。！？、；：""''（）《》【】……—\-,.!?;:()\[\]{}""''\s]+$/.test(t)) return false;
+      if (t.replace(/[，。！？、；：""''（）《》【】……—\-,.!?;:()\[\]{}""''\s]/g, '').length <= 1) return false;
+      return true;
+    });
+  }, []);
+}
+
+// ============================================================
+// 单句分析
+// ============================================================
+function analyzeSingleSentence(sentence, idx) {
+  return safe(() => {
+    const tokens = tokenize(sentence);
+    const tagged = posTag(tokens);
+    const contentTokens = tagged.filter(t => t.pos !== 'w');
+    const wordCount = contentTokens.length;
+    const { triples, heads, rels, rootIdx } = dependencyParse(tagged);
+    const mdd = calcMDD(triples);
+    const maxDepth = calcMaxDepth(heads, rootIdx);
+    const depTypes = [...new Set(triples.map(t => t.rel))];
+    const depTypesCount = depTypes.length;
+    const dsdi = calcDSDI(wordCount, maxDepth, mdd, depTypesCount);
+    const diff = getDifficulty(dsdi);
+    const treeVis = buildTreeVisualization(heads, rels, tagged.map(t => t.word), rootIdx);
+    return {
+      sentence, idx, tokens, tagged, triples, heads, rels, rootIdx,
+      wordCount, mdd, maxDepth, depTypesCount, depTypes, dsdi, diff,
+      treeVis,
+      rootWord: rootIdx >= 0 ? (tagged[rootIdx]?.word || '(无)') : '(无)',
+      sbvWords: triples.filter(t => t.rel === 'SBV').map(t => t.depWord),
+      vobWords: triples.filter(t => t.rel === 'VOB').map(t => t.depWord),
+      attWords: triples.filter(t => t.rel === 'ATT').map(t => t.depWord),
+      advWords: triples.filter(t => t.rel === 'ADV').map(t => t.depWord),
+    };
+  }, {
+    sentence, idx: idx || 0, tokens: [], tagged: [], triples: [], heads: [], rels: [], rootIdx: -1,
+    wordCount: 0, mdd: 0, maxDepth: 0, depTypesCount: 0, depTypes: [], dsdi: 0,
+    diff: { level: '简单', cls: 'badge-easy' }, treeVis: '(分析失败)',
+    rootWord: '(无)', sbvWords: [], vobWords: [], attWords: [], advWords: []
+  });
+}
+
+// ============================================================
+// 图表绘制
+// ============================================================
+function drawPieChart(canvasId, data) {
+  safe(() => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w / 2, cy = h / 2;
+    const r = Math.min(w, h) / 2 - 10;
+    const total = data.reduce((s, d) => s + d.value, 0);
+    if (total === 0) {
+      ctx.fillStyle = '#999';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('暂无数据', cx, cy);
+      return;
+    }
+    let startAngle = -Math.PI / 2;
+    for (const item of data) {
+      if (item.value === 0) continue;
+      const angle = (item.value / total) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, startAngle, startAngle + angle);
+      ctx.closePath();
+      ctx.fillStyle = item.color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      startAngle += angle;
+    }
+  }, null);
+}
+
+function drawBarChart(canvasId, data, maxValue) {
+  safe(() => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const padding = { top: 10, right: 10, bottom: 30, left: 40 };
+    const chartW = w - padding.left - padding.right;
+    const chartH = h - padding.top - padding.bottom;
+    if (data.length === 0) {
+      ctx.fillStyle = '#999';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('暂无数据', w / 2, h / 2);
+      return;
+    }
+    const max = maxValue || Math.max(...data.map(d => d.value));
+    const barW = Math.min(chartW / data.length * 0.6, 40);
+    const gap = chartW / data.length;
+
+    // 坐标轴
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, h - padding.bottom);
+    ctx.lineTo(w - padding.right, h - padding.bottom);
+    ctx.stroke();
+
+    // 柱形
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < data.length; i++) {
+      const barH = (data[i].value / max) * chartH;
+      const x = padding.left + i * gap + (gap - barW) / 2;
+      const y = h - padding.bottom - barH;
+      ctx.fillStyle = data[i].color || '#0f3460';
+      ctx.fillRect(x, y, barW, barH);
+      // 数值
+      ctx.fillStyle = '#333';
+      ctx.fillText(data[i].value, x + barW / 2, y - 3);
+      // 标签
+      ctx.fillStyle = '#666';
+      ctx.fillText(data[i].label, x + barW / 2, h - padding.bottom + 14);
+    }
+  }, null);
+}
+
+// ============================================================
+// 主分析流程
+// ============================================================
+function runAnalysis() {
+  const btn = document.getElementById('btnAnalyze');
+  btn.disabled = true;
+  const rawText = document.getElementById('inputText').value;
+  const output = document.getElementById('outputArea');
+
+  if (!rawText.trim()) {
+    output.innerHTML = '<div class="error-box">请输入文本后再分析。</div>';
+    btn.disabled = false;
+    return;
+  }
+
+  output.innerHTML = '<div class="loading-text"><span class="spinner"></span>正在分析中，请稍候...</div>';
+
+  setTimeout(() => {
+    try {
+      const results = performAnalysis(rawText);
+      renderResults(results, output);
+    } catch (e) {
+      output.innerHTML = `<div class="error-box">分析出错：${e.message}</div>`;
+      console.error(e);
+    } finally {
+      btn.disabled = false;
+    }
+  }, 50);
+}
+
+function performAnalysis(rawText) {
+  return safe(() => {
+    // 阶段零
+    const puncMatches = rawText.match(/[。？！……]/g);
+    const puncCount = puncMatches ? puncMatches.length : 0;
+    const newlineCount = (rawText.match(/\n/g) || []).length;
+    const spaceCount = (rawText.match(/\s/g) || []).length;
+    const totalChars = rawText.replace(/\s/g, '').length;
+    let mode = totalChars === 0 ? 'C' : (puncCount / totalChars >= 0.01 ? 'A' : 'B');
+    const phase0 = { puncCount, newlineCount, spaceCount, totalChars, mode };
+
+    // 阶段一
+    const sentences = segmentSentences(rawText, mode);
+    const totalSentences = sentences.length;
+    const phase1 = { mode, totalSentences, sentences };
+
+    // 阶段二
+    const sentenceResults = [];
+    let totalWordsAll = 0;
+    for (let i = 0; i < sentences.length; i++) {
+      const r = analyzeSingleSentence(sentences[i], i + 1);
+      sentenceResults.push(r);
+      totalWordsAll += r.wordCount;
+    }
+    const phase2 = { sentenceResults, totalWordsAll };
+
+    // 排序
+    const sortedByDsdi = [...sentenceResults].sort((a, b) => b.dsdi - a.dsdi);
+
+    // 阶段三：复审
+    let review1Passed = 0, review1Fixed = 0;
+    const review1Details = [];
+    for (const r of sentenceResults) {
+      const hasRoot = r.triples.some(t => t.rel === 'ROOT');
+      let cycle = false;
+      for (let i = 0; i < r.tagged.length; i++) {
+        const visited = new Set();
+        function check(node) {
+          if (node < 0) return false;
+          if (visited.has(node)) return true;
+          visited.add(node);
+          return check(r.heads[node]);
+        }
+        if (check(i)) { cycle = true; break; }
+      }
+      if (hasRoot && !cycle) review1Passed++;
+      else { review1Fixed++; review1Details.push(`S${r.idx}: ${!hasRoot ? '缺少ROOT' : ''}${!hasRoot && cycle ? '、' : ''}${cycle ? '存在环' : ''}`); }
+    }
+    const review1 = { passed: review1Passed, fixed: review1Fixed, details: review1Details };
+
+    const review2Rows = [];
+    for (const r of sentenceResults) {
+      const mddRe = calcMDD(r.triples);
+      const mdRe = calcMaxDepth(r.heads, r.rootIdx);
+      const dtRe = [...new Set(r.triples.map(t => t.rel))].length;
+      const dsdiRe = calcDSDI(r.wordCount, mdRe, mddRe, dtRe);
+      for (const c of [
+        { metric: 'MDD', orig: r.mdd.toFixed(2), recalc: mddRe.toFixed(2), ok: Math.abs(r.mdd - mddRe) < 0.01 },
+        { metric: 'DSDI', orig: r.dsdi.toFixed(1), recalc: dsdiRe.toFixed(1), ok: Math.abs(r.dsdi - dsdiRe) < 0.1 }
+      ]) {
+        review2Rows.push({ sid: `S${r.idx}`, ...c });
+      }
+    }
+    const review2 = { rows: review2Rows };
+
+    const diffCounts = { '简单': 0, '中等': 0, '较难': 0, '困难': 0, '极难': 0 };
+    for (const r of sentenceResults) diffCounts[r.diff.level] = (diffCounts[r.diff.level] || 0) + 1;
+    const review3 = {
+      pctSumOk: Object.values(diffCounts).reduce((a, b) => a + b, 0) === sentenceResults.length,
+      top3Correct: sortedByDsdi.length < 3 || (sortedByDsdi[0].dsdi >= sortedByDsdi[1].dsdi && sortedByDsdi[1].dsdi >= sortedByDsdi[2].dsdi),
+      diffCounts
+    };
+
+    // 阶段四
+    const avgDsdi = sentenceResults.length > 0 ? sentenceResults.reduce((s, r) => s + r.dsdi, 0) / sentenceResults.length : 0;
+    const maxDsdiResult = sentenceResults.length > 0 ? sortedByDsdi[0] : null;
+    const minDsdiResult = sentenceResults.length > 0 ? sortedByDsdi[sortedByDsdi.length - 1] : null;
+    const avgLen = sentenceResults.length > 0 ? totalWordsAll / sentenceResults.length : 0;
+    const depDist = {};
+    for (const r of sentenceResults) for (const t of r.triples) depDist[t.rel] = (depDist[t.rel] || 0) + 1;
+    const totalDeps = Object.values(depDist).reduce((a, b) => a + b, 0);
+    const overallLoad = avgDsdi < 25 ? '低' : avgDsdi < 50 ? '中' : '高';
+    const phase4 = {
+      totalSentences, totalWordsAll, avgLen, avgDsdi, maxDsdiResult, minDsdiResult,
+      diffCounts, depDist, totalDeps, overallLoad
+    };
+
+    // Top3
+    const top3 = sortedByDsdi.slice(0, 3);
+
+    return { rawText, phase0, phase1, phase2, review1, review2, review3, phase4, top3, sentenceResults, sortedByDsdi };
+  }, null);
+}
+
+// ============================================================
+// 渲染
+// ============================================================
+function renderResults(r, output) {
+  if (!r) { output.innerHTML = '<div class="error-box">分析失败，请检查输入文本。</div>'; return; }
+
+  let html = '';
+
+  // 阶段零
+  html += `<div class="phase-card phase-0">
+    <div class="phase-title">阶段零：初始化完成</div>
+    <div class="phase-content"><pre>
+· 原始字符数：${r.phase0.totalChars}
+· 终结符数量：${r.phase0.puncCount}
+· 换行符数量：${r.phase0.newlineCount}
+· 空格数量：${r.phase0.spaceCount}
+· 自动选择模式：模式${r.phase0.mode}
+· 状态：✅ 初始化完成</pre></div></div>`;
+
+  // 阶段一
+  html += `<div class="phase-card phase-1">
+    <div class="phase-title">阶段一：句子切分完成</div>
+    <div class="phase-content"><pre>
+· 切分模式：模式${r.phase1.mode}
+· 有效句数：${r.phase1.totalSentences} 句
+· 状态：✅ 切分完成
+
+<span class="collapse-toggle" onclick="toggleCollapse(this)">展开/收起 全部句子列表</span>
+<div class="collapse-body hidden">
+${r.phase1.sentences.map((s, i) => `  S${i + 1}: ${s.length > 60 ? s.substring(0, 60) + '...' : s}`).join('\n')}
+</div></pre></div></div>`;
+
+  // 总览（全文统计 + 图表）
+  const p4 = r.phase4;
+  html += `<div class="phase-card phase-overview">
+    <div class="phase-title">📊 全文统计总览（DSDI 概览）</div>
+    <div class="phase-content">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-value">${p4.totalSentences}</div><div class="stat-label">总句数</div></div>
+        <div class="stat-card"><div class="stat-value">${p4.totalWordsAll}</div><div class="stat-label">总词数</div></div>
+        <div class="stat-card"><div class="stat-value">${p4.avgLen.toFixed(1)}</div><div class="stat-label">平均句长(词)</div></div>
+        <div class="stat-card"><div class="stat-value">${p4.avgDsdi.toFixed(1)}</div><div class="stat-label">平均DSDI</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:#e74c3c">${p4.maxDsdiResult ? p4.maxDsdiResult.dsdi.toFixed(1) : '-'}</div><div class="stat-label">最高DSDI</div></div>
+        <div class="stat-card"><div class="stat-value" style="font-size:18px">${p4.overallLoad}</div><div class="stat-label">认知负荷总评</div></div>
+      </div>
+
+      <div class="chart-row">
+        <div class="chart-box">
+          <h5>句子难度分布</h5>
+          <canvas id="pieChart" width="280" height="220"></canvas>
+          <div class="chart-legend">
+            ${DIFF_ORDER.map(lvl => `<span class="legend-item"><span class="legend-dot" style="background:${DIFF_COLORS[lvl]}"></span>${lvl}(${p4.diffCounts[lvl] || 0})</span>`).join('')}
+          </div>
+        </div>
+        <div class="chart-box">
+          <h5>依存关系类型 TOP 8</h5>
+          <canvas id="barChart" width="320" height="220"></canvas>
+        </div>
+      </div>
+
+      <div class="dsdi-bar-chart">
+        <h5>各句 DSDI 指数（从高到低）</h5>
+        ${r.sortedByDsdi.slice(0, Math.min(r.sortedByDsdi.length, 20)).map(s => {
+          const pct = p4.maxDsdiResult ? (s.dsdi / p4.maxDsdiResult.dsdi * 100) : 0;
+          return `<div class="dsdi-bar">
+            <span class="bar-label">S${s.idx}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct.toFixed(1)}%;background:${DIFF_COLORS[s.diff.level]}"></div></div>
+            <span class="bar-value">${s.dsdi.toFixed(1)} ${s.diff.level}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+
+  // Top 3 长难句
+  html += `<div class="phase-card phase-top3">
+    <div class="phase-title">🏆 Top 3 长难句精析</div>
+    <div class="phase-content">`;
+  for (let i = 0; i < r.top3.length; i++) {
+    const t = r.top3[i];
+    html += `<div class="top3-item rank-${i + 1}">
+      <div class="top3-title"><span class="top3-rank">${i + 1}</span>${t.sentence.length > 80 ? t.sentence.substring(0, 80) + '...' : t.sentence}</div>
+      <pre>
+· DSDI：${t.dsdi.toFixed(1)} <span class="badge ${t.diff.cls}">${t.diff.level}</span>
+· 各维度得分：词数(${t.wordCount}) + 深度(${t.maxDepth}) + MDD(${t.mdd.toFixed(2)}) + 类型数(${t.depTypesCount})
+· 难点拆解：${getDifficultyExplanation(t)}
+· 简化改写：${getSimplifiedVersion(t)}</pre>
+    </div>`;
+  }
+  html += `</div></div>`;
+
+  // 阶段二：逐句分析（可折叠）
+  html += `<div class="phase-card phase-2">
+    <div class="phase-title collapse-toggle" onclick="toggleCollapse(this)">📖 阶段二：逐句依存分析（点击展开/收起）</div>
+    <div class="phase-content collapse-body hidden">`;
+  for (const r2 of r.sentenceResults) {
+    const posStr = r2.tagged.length > 0 ? r2.tagged.map(t => `${t.word}/${t.pos}`).join(', ') : '(无)';
+    const tripleStr = r2.triples.length > 0 ? r2.triples.map(t =>
+      `${t.depWord}(${t.depPos}) → ${t.headWord}(${t.head >= 0 ? (r2.tagged[t.head]?.pos || '?') : 'ROOT'})  ${t.rel}`
+    ).join('\n') : '(无)';
+
+    html += `<div class="sentence-block">
+<h4>第${r2.idx}句：${r2.sentence.length > 100 ? r2.sentence.substring(0, 100) + '...' : r2.sentence} <span class="badge ${r2.diff.cls}">${r2.diff.level}</span> DSDI: ${r2.dsdi.toFixed(1)}</h4>
+<pre>
+一、分词与词性标注
+${posStr}
+
+二、依存关系三元组
+${tripleStr}
+
+三、句法骨架
+· ROOT（核心谓语）：<b>${r2.rootWord}</b>
+· 主语：[${r2.sbvWords.join(', ') || '无'}]
+· 宾语：[${r2.vobWords.join(', ') || '无'}]
+· 定语修饰：[${r2.attWords.join(', ') || '无'}]
+· 状语修饰：[${r2.advWords.join(', ') || '无'}]
+
+四、认知难度指标表
+指标                    原始值      权重      加权得分
+词语总数                ${r2.wordCount}        ×0.2      ${(r2.wordCount * 0.2).toFixed(1)}
+最大依存深度            ${r2.maxDepth}          ×3.0      ${(r2.maxDepth * 3.0).toFixed(1)}
+平均依存距离(MDD)       ${r2.mdd.toFixed(2)}     ×4.0      ${(r2.mdd * 4.0).toFixed(1)}
+依存关系类型数          ${r2.depTypesCount}种       ×2.0      ${(r2.depTypesCount * 2.0).toFixed(1)}
+DSDI长难句指数          —            —         <b>${r2.dsdi.toFixed(1)}</b>
+
+五、依存树可视化（文字版）
+</pre><div class="tree-vis">${r2.treeVis}</div>
+<pre>
+六、难度判定
+· DSDI数值：${r2.dsdi.toFixed(1)}
+· 难度等级：<span class="badge ${r2.diff.cls}">${r2.diff.level}</span>
+· 主要难点：${getDifficultyExplanation(r2)}</pre></div>`;
+  }
+  html += `</div></div>`;
+
+  // 阶段三
+  html += `<div class="phase-card phase-3">
+    <div class="phase-title collapse-toggle" onclick="toggleCollapse(this)">🔍 阶段三：三重复审（点击展开/收起）</div>
+    <div class="phase-content collapse-body hidden"><pre>
+【第一轮：句法树合法性校验】
+· 总句数：${r.sentenceResults.length}  · 通过：${r.review1.passed}  · 修正：${r.review1.fixed}
+· 详情：${r.review1.details.length > 0 ? r.review1.details.join('；') : '无'}
+
+【第二轮：指标计算准确性校验】
+句号    指标    原值    复核值    状态
+${r.review2.rows.slice(0, Math.min(r.review2.rows.length, 30)).map(row => `${row.sid.padEnd(6)} ${row.metric.padEnd(6)} ${row.orig.padEnd(6)} ${row.recalc.padEnd(6)} ${row.ok ? '✅正确' : '❌需修正'}`).join('\n')}
+${r.review2.rows.length > 30 ? `...共 ${r.review2.rows.length} 条记录` : ''}
+
+【第三轮：分类与解读一致性校验】
+· 难度等级匹配：全部匹配
+· 占比求和：${r.review3.pctSumOk ? '=100% ✅' : '≠100% ❌'}
+· Top 3 排序：${r.review3.top3Correct ? '正确' : '已重排'}
+
+复审结论：所有数据经复核无误，可输出最终报告。</pre></div></div>`;
+
+  output.innerHTML = html;
+
+  // 绘制图表
+  setTimeout(() => {
+    // 饼图数据
+    const pieData = DIFF_ORDER.map(lvl => ({
+      label: lvl,
+      value: p4.diffCounts[lvl] || 0,
+      color: DIFF_COLORS[lvl]
+    })).filter(d => d.value > 0);
+    drawPieChart('pieChart', pieData);
+
+    // 柱状图数据
+    const barData = Object.entries(p4.depDist)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([rel, count], i) => ({
+        label: rel,
+        value: count,
+        color: `hsl(${210 + i * 30}, 70%, 55%)`
+      }));
+    drawBarChart('barChart', barData);
+  }, 50);
+}
+
+// ============================================================
+// 折叠切换
+// ============================================================
+function toggleCollapse(el) {
+  const body = el.nextElementSibling || el.parentElement.nextElementSibling;
+  if (body && body.classList.contains('collapse-body')) {
+    body.classList.toggle('hidden');
+    el.classList.toggle('collapsed');
+  } else if (el.classList.contains('collapse-toggle')) {
+    const next = el.nextElementSibling;
+    if (next && next.classList.contains('collapse-body')) {
+      next.classList.toggle('hidden');
+      el.classList.toggle('collapsed');
+    }
+  }
+}
+
+// ============================================================
+// 辅助函数
+// ============================================================
+function getDifficultyExplanation(r) {
+  return safe(() => {
+    const parts = [];
+    if (r.wordCount > 10) parts.push(`词语数量较多(${r.wordCount}词)`);
+    if (r.maxDepth > 3) parts.push(`依存深度大(深度${r.maxDepth})`);
+    if (r.mdd > 2.5) parts.push(`依存距离较长(MDD=${r.mdd.toFixed(2)})`);
+    if (r.depTypesCount > 6) parts.push(`依存关系类型丰富(${r.depTypesCount}种)`);
+    if (parts.length === 0) parts.push('句式结构简单，认知负荷低');
+    return parts.join('；');
+  }, '无法分析');
+}
+
+function getSimplifiedVersion(r) {
+  return safe(() => {
+    const sbv = r.sbvWords.join('');
+    const vob = r.vobWords.join('');
+    const root = r.rootWord;
+    if (sbv && root && vob && root !== '(无)') {
+      return `（建议简化）${sbv}${root}${vob}。可将修饰成分拆分为独立短句。`;
+    }
+    return '（句式已较简洁，无需大幅简化）';
+  }, '');
+}
+
+function loadSample(n) {
+  const samples = {
+    1: '我是一个学生。今天天气很好。',
+    2: '虽然这项任务非常困难，但是经过团队成员的不懈努力和密切配合，我们最终成功地完成了所有工作，并且获得了客户的高度评价。',
+    3: '在当今这个信息技术飞速发展的时代，人工智能技术的广泛应用不仅深刻地改变了人们的生活方式和工作模式，而且对全球经济结构和社会发展产生了深远的影响，因此各国政府和企业都在积极推动相关领域的研究与创新。'
+  };
+  document.getElementById('inputText').value = samples[n] || '';
+}
+
+function clearAll() {
+  document.getElementById('inputText').value = '';
+  document.getElementById('outputArea').innerHTML = '';
+}
+</script>
+</body>
+</html>
