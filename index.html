@@ -1,39 +1,39 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>中文依存句法分析器</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  background: #f0f2f5;
-  color: #333;
-  line-height: 1.6;
+<!DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>   < !DOCTYPE html>
+<   超文本标记语言   超文本标记语言   超文本标记语言html lang   朗   朗   朗   朗   朗   朗   朗   朗   朗   朗   朗="zh-CN"   "zh-CN"   "zh-CN"   "zh-CN"   "zh-CN"   "zh-CN"   "zh-CN"   "zh-CN"   "zh-CN">   "zh-CN"   "zh-CN"   "zh-CN"
+<   头   头   头   头head   头   头   头   头>
+<   元   元   元meta charset   字符集   字符集   字符集   字符集   字符集   字符集   字符集   字符集   字符集   字符集   字符集="UTF-8"   "UTF-8"   "UTF-8"   "UTF-8"   "UTF-8"   "UTF-8"   "UTF-8"   "UTF-8"   "UTF-8">   "UTF-8"   "UTF-8"   "UTF-8"
+<   元   元   元meta name   名字   名字   名字   名字   名字   名字   名字   名字   名字   名字   名字="viewport"   "viewport"   "viewport"   "viewport"   "viewport"   "viewport"   "viewport"   "viewport"   "viewport"   "viewport"   "viewport"   "viewport" content="width=device-width, initial-scale=1.0">
+<   标题   标题   标题   标题   标题title   标题   标题   标题>中文依存句法分析器</   & lt;title   标题>   & lt;
+<   风格   风格   风格   风格   风格style   风格   风格   风格>
+* { margin   保证金   保证金   保证金: 0; padding   填充   填充   填充: 0; box-sizing: border-box; }
+body   身体   身体   身体 {
+  font-family   字体类型   字体类型   字体类型: "PingFang SC"   "PingFang SC"   "PingFang SC"   "PingFang SC", "Microsoft YaHei"   "Microsoft YaHei"   "Microsoft YaHei"   "Microsoft YaHei", "Noto Sans SC"   "Noto Sans SC"   "Noto Sans SC"   "Noto Sans SC", sans-serif;
+  background   背景   背景   背景: #f0f2f5;
+  color   颜色   颜色   颜色: #333;
+  line-height   行高   行高   行高: 1.6;
 }
-.container { max-width: 1100px; margin: 0 auto; padding: 20px; }
-.header {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  color: #fff;
-  padding: 30px;
+.container   容器   容器   容器 { max-width: 1100px; margin   保证金   保证金   保证金: 0 auto   汽车   汽车   汽车; padding   填充   填充   填充: 20px; }
+.header   头   头   头 {
+  background   背景   背景   背景: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: #fff;         颜色颜色颜色
+  padding   填充   填充   填充: 30px;
   border-radius: 12px;
   margin-bottom: 24px;
   text-align: center;
 }
-.header h1 { font-size: 28px; margin-bottom: 6px; }
-.header p { font-size: 14px; opacity: 0.8; }
+.header   头   头   头 h1 { font-size: 28px; margin-bottom: 6px; }
+.header   头   头   头 p { font-size: 14px; opacity: 0.8; }.header p { 字 14px； 0.8；}
 .input-section {
-  background: #fff;
+  background   背景   背景   背景: #fff;
   border-radius: 12px;
-  padding: 24px;
+  padding   填充   填充   填充: 24px;
   margin-bottom: 24px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
 }
 .input-section textarea {
   width: 100%;
   min-height: 180px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #e0e0e0;边框：2px 实线 #e0e0e0；
   border-radius: 8px;
   padding: 16px;
   font-size: 15px;
